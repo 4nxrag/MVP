@@ -26,7 +26,7 @@ interface PostState {
   initializeRealTime: () => void;
 }
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://shadowspace-t0v1.onrender.com/api';
 
 export const usePostStore = create<PostState>((set, get) => ({
   posts: [],

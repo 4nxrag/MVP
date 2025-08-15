@@ -5,7 +5,7 @@ class SocketService {
 
   connect(): Socket {
     if (!this.socket) {
-      this.socket = io('http://localhost:5000', {
+      this.socket = io('https://shadowspace-t0v1.onrender.com', {
         withCredentials: true,
         transports: ['websocket', 'polling']
       });

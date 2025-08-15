@@ -18,7 +18,7 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://shadowspace-t0v1.onrender.com/api';
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
