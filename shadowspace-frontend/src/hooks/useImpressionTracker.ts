@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useIntersectionObserver } from './useIntersectionObserver';
-import axios from 'axios';
 
 interface UseImpressionTrackerProps {
   postId: string;
   onImpressionTracked?: (impressions: number) => void;
 }
 
-const API_BASE = 'https://shadowspace-t0v1.onrender.com';
+const API_BASE = 'https://shadowspace-t0v1.onrender.com/api';
+
+// Safe localStorage access for SSR
+const getToken = () => 
+  typeof window !== 'undefined' ? localStorage.getItem('shadowspace_token') : null;
 
 export const useImpressionTracker = ({ 
   postId, 
@@ -18,8 +21,8 @@ export const useImpressionTracker = ({
     rootMargin: '-50px' // Account for header/footer
   });
 
-const hasTrackedRef = useRef(false);
-const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasTrackedRef = useRef(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Clear any existing timer
@@ -32,16 +35,32 @@ const timerRef = useRef<NodeJS.Timeout | null>(null);
       timerRef.current = setTimeout(async () => {
         if (!hasTrackedRef.current) {
           try {
-            const response = await axios.put(`${API_BASE}/posts/${postId}/impression`);
+            const token = getToken();
+            
+            const response = await fetch(`${API_BASE}/posts/${postId}/impression`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+              // Remove body since your backend doesn't expect it
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
             hasTrackedRef.current = true;
             
             if (onImpressionTracked) {
-              onImpressionTracked(response.data.impressions);
+              onImpressionTracked(data.impressions || data.impression_count || 1);
             }
             
             console.log(`📊 Impression tracked for post ${postId}`);
           } catch (error) {
             console.error('Impression tracking error:', error);
+            // Don't retry automatically to avoid spam
           }
         }
       }, 3000); // 3 seconds
@@ -58,6 +77,11 @@ const timerRef = useRef<NodeJS.Timeout | null>(null);
       }
     };
   }, [isVisible, postId, onImpressionTracked]);
+
+  // Reset tracking when postId changes
+  useEffect(() => {
+    hasTrackedRef.current = false;
+  }, [postId]);
 
   return { elementRef };
 };

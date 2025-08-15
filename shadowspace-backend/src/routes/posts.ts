@@ -45,12 +45,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
 
     await post.save();
 
-    router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    // ... existing validation and post creation code ...
-
-    await post.save();
-
     // Populate user info for response
     const populatedPost = await Post.findById(post._id)
       .populate('userId', 'anonymousName')
@@ -82,32 +76,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 });
 
-    // Populate user info for response (but only anonymous name)
-    const populatedPost = await Post.findById(post._id)
-      .populate('userId', 'anonymousName')
-      .exec();
-
-    res.status(201).json({
-      message: 'Post created successfully',
-      post: {
-        id: populatedPost!._id,
-        content: populatedPost!.content,
-        upvotes: populatedPost!.upvotes,
-        downvotes: populatedPost!.downvotes,
-        impressions: populatedPost!.impressions,
-        fakeRegion: populatedPost!.fakeRegion,
-        createdAt: populatedPost!.createdAt,
-        author: (populatedPost!.userId as any).anonymousName
-      }
-    });
-
-  } catch (error) {
-    console.error('Create post error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
 // GET /api/posts route with enhanced sorting:
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -119,16 +87,12 @@ router.get('/', async (req: Request, res: Response) => {
     
     switch (sort) {
       case 'top':
-        // Most upvoted first, then by creation date
         sortQuery = { upvotes: -1, createdAt: -1 };
         break;
       case 'viewed':
-        // Most viewed (impressions) first
         sortQuery = { impressions: -1, createdAt: -1 };
         break;
       case 'trending':
-        // Trending algorithm: recent posts with good engagement
-        // We'll use MongoDB aggregation for this
         break;
       case 'recent':
       default:
@@ -137,7 +101,6 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const skip = (page - 1) * limit;
-
     let posts;
     
     if (sort === 'trending') {
@@ -145,7 +108,6 @@ router.get('/', async (req: Request, res: Response) => {
       posts = await Post.aggregate([
         {
           $addFields: {
-            // Calculate trending score: (upvotes - downvotes) / age_in_hours
             trendingScore: {
               $divide: [
                 { $subtract: ['$upvotes', '$downvotes'] },
@@ -302,14 +264,7 @@ router.put('/:id/vote', authMiddleware, async (req: AuthRequest, res: Response) 
       }
     }
 
-    res.json({
-      message: 'Vote updated successfully',
-      upvotes: post.upvotes,
-      downvotes: post.downvotes,
-      userVote: type === 'remove' ? null : type
-    });
-
-        const voteData = {
+    const voteData = {
       postId: postId,
       upvotes: post.upvotes,
       downvotes: post.downvotes,
@@ -333,13 +288,8 @@ router.put('/:id/vote', authMiddleware, async (req: AuthRequest, res: Response) 
   }
 });
 
-
-
-
-
-// PUT /api/posts/:id/impression - Track post impression in real time
-
-router.put('/:id/impression', async (req: Request, res: Response) => {
+// POST /api/posts/:id/impression - Track post impression (Changed from PUT to POST)
+router.post('/:id/impression', async (req: Request, res: Response) => {
   try {
     const postId = req.params.id;
     
@@ -370,8 +320,6 @@ router.put('/:id/impression', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 // GET /api/posts/:id - Get single post with user's vote status
 router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -411,8 +359,5 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
 
 export default router;
