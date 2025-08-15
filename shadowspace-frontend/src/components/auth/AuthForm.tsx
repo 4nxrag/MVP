@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Add this import
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
-
 
 const AuthForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,25 +11,49 @@ const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuthStore();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
- const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    // Basic validation
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters long');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
-        await login(username, password);
+        await login(username.trim(), password);
       } else {
-        await register(username, password);
+        await register(username.trim(), password);
       }
       
-      // Add navigation after successful auth
-      navigate('/', { replace: true }); // Redirect to homepage
+      // Navigation after successful auth
+      navigate('/', { replace: true });
       
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      // More specific error messages
+      if (err.message.includes('401') || err.message.includes('unauthorized')) {
+        setError('Invalid username or password');
+      } else if (err.message.includes('400') || err.message.includes('bad request')) {
+        setError('Please check your input and try again');
+      } else if (err.message.includes('409') || err.message.includes('conflict')) {
+        setError('Username already exists. Please choose a different one');
+      } else if (err.message.includes('network') || err.message.includes('fetch')) {
+        setError('Network error. Please check your connection and try again');
+      } else {
+        setError(err.message || 'Authentication failed. Please try again');
+      }
     } finally {
       setLoading(false);
     }
@@ -38,6 +61,14 @@ const AuthForm: React.FC = () => {
   
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  const handleModeSwitch = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    setPassword('');
+    setUsername(''); // Clear username too for better UX
+    setShowPassword(false);
   };
 
   return (
@@ -68,7 +99,10 @@ const AuthForm: React.FC = () => {
                 className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all duration-200"
                 placeholder="Enter your username"
                 required
+                minLength={3}
+                maxLength={20}
                 autoComplete="username"
+                disabled={loading}
               />
             </div>
 
@@ -86,14 +120,17 @@ const AuthForm: React.FC = () => {
                   className="w-full px-4 py-3 pr-12 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all duration-200"
                   placeholder="Enter your password"
                   required
+                  minLength={6}
                   autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  disabled={loading}
                 />
                 
                 {/* Eye Toggle Button */}
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:text-blue-400"
+                  disabled={loading}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-400 transition-colors duration-200 focus:outline-none focus:text-blue-400 disabled:opacity-50"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
@@ -138,13 +175,9 @@ const AuthForm: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setPassword('');
-                setShowPassword(false);
-              }}
-              className="text-blue-400 hover:text-blue-300 transition-colors duration-200 underline text-sm"
+              onClick={handleModeSwitch}
+              disabled={loading}
+              className="text-blue-400 hover:text-blue-300 transition-colors duration-200 underline text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLogin ? "Don't have an account? Create one" : 'Already have an account? Sign in'}
             </button>
