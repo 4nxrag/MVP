@@ -100,41 +100,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkAuth: async () => {
-    try {
-      const token = localStorage.getItem('shadowspace_token');
-      
-      if (!token) {
-        set({ isAuthenticated: false, user: null, token: null });
-        return;
-      }
+  try {
+    const token = localStorage.getItem('shadowspace_token');
+    
+    if (!token) {
+      set({ isAuthenticated: false, user: null, token: null });
+      return;
+    }
 
-      const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-      if (!response.ok) {
-        // Token is invalid, clear it
-        localStorage.removeItem('shadowspace_token');
-        set({ isAuthenticated: false, user: null, token: null });
-        return;
-      }
+    const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal, // Add timeout signal
+    });
 
-      const data = await response.json();
-      
-      set({
-        isAuthenticated: true,
-        user: data.user,
-        token: token,
-      });
+    clearTimeout(timeoutId);
 
-    } catch (error) {
-      console.error('Auth check failed:', error);
+    if (!response.ok) {
       localStorage.removeItem('shadowspace_token');
       set({ isAuthenticated: false, user: null, token: null });
+      return;
     }
-  },
+
+    const data = await response.json();
+    set({
+      isAuthenticated: true,
+      user: data.user,
+      token: token,
+    });
+
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    localStorage.removeItem('shadowspace_token');
+    set({ isAuthenticated: false, user: null, token: null });
+  }
+},
+
 }));
