@@ -9,24 +9,46 @@ import User from './models/User';
 import authRoutes from './routes/auth';
 import postRoutes from './routes/posts';
 
+
+
+
+// Allow your frontend URL to access the backend
+const corsOptions = {
+  origin: 'https://shadowspace-seven.vercel.app', // Your frontend URL
+  optionsSuccessStatus: 200
+};
+
+
+
+// Your other middlewares and routes...
+
+
 dotenv.config();
 
 const app = express();
 const server = createServer(app);
+app.use(cors(corsOptions));
 
+
+// Initialize Socket.IO with CORS
 // Initialize Socket.IO with CORS
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000',
+      'https://shadowspace-seven.vercel.app'  // Add your deployed frontend URL
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
 });
 
+
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://shadowspace-seven.vercel.app'], // Add your deployed frontend URL
   credentials: true
 }));
 app.use(express.json({ limit: '1mb' }));
