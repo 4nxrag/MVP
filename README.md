@@ -146,7 +146,7 @@ Experience the power of anonymous connection. Help shape a social platform redef
 ## 🔗 Links & Contact
 
 - Repository: *(https://github.com/4nxrag/ShadowSpace)*
-- Live Demo: *(Pending...)*
+- Live Demo: *(https://shadowspace-seven.vercel.app/)*
 - Contact: *(Email - shadowspacefounder@gmail.com)*
 
 ***
