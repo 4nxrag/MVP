@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Add this import
 import { useAuthStore } from '../../store/useAuthStore';
+
 
 const AuthForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -10,8 +12,9 @@ const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuthStore();
+  const navigate = useNavigate(); 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -22,13 +25,17 @@ const AuthForm: React.FC = () => {
       } else {
         await register(username, password);
       }
+      
+      // Add navigation after successful auth
+      navigate('/', { replace: true }); // Redirect to homepage
+      
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
   };
-
+  
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
