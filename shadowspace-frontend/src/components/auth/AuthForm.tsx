@@ -42,23 +42,38 @@ const AuthForm: React.FC = () => {
       navigate('/', { replace: true });
       
     } catch (err: any) {
-      // More specific error messages
-      if (err.message.includes('401') || err.message.includes('unauthorized')) {
-        setError('Invalid username or password');
-      } else if (err.message.includes('400') || err.message.includes('bad request')) {
-        setError('Please check your input and try again');
-      } else if (err.message.includes('409') || err.message.includes('conflict')) {
-        setError('Username already exists. Please choose a different one');
-      } else if (err.message.includes('network') || err.message.includes('fetch')) {
-        setError('Network error. Please check your connection and try again');
-      } else {
-        setError(err.message || 'Authentication failed. Please try again');
+      console.log('Auth error:', err); // Debug log
+      
+      // Handle different error types
+      let errorMessage = 'Authentication failed. Please try again';
+      
+      if (err.message) {
+        const message = err.message.toLowerCase();
+        
+        if (message.includes('invalid') || message.includes('incorrect') || message.includes('wrong')) {
+          errorMessage = 'Invalid username or password';
+        } else if (message.includes('user not found') || message.includes('not found')) {
+          errorMessage = 'User not found. Please check your username';
+        } else if (message.includes('already exists') || message.includes('duplicate') || message.includes('taken')) {
+          errorMessage = 'Username already exists. Please choose a different one';
+        } else if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+          errorMessage = 'Network error. Please check your connection and try again';
+        } else if (message.includes('server') || message.includes('500')) {
+          errorMessage = 'Server error. Please try again later';
+        } else if (message.includes('validation') || message.includes('required')) {
+          errorMessage = 'Please fill in all required fields correctly';
+        } else {
+          // Use the original error message if it's user-friendly
+          errorMessage = err.message;
+        }
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -67,7 +82,7 @@ const AuthForm: React.FC = () => {
     setIsLogin(!isLogin);
     setError('');
     setPassword('');
-    setUsername(''); // Clear username too for better UX
+    setUsername('');
     setShowPassword(false);
   };
 
@@ -149,8 +164,13 @@ const AuthForm: React.FC = () => {
 
             {/* Error Message */}
             {error && (
-              <div className="text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                {error}
+              <div className="text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 rounded-xl p-3 animate-pulse">
+                <div className="flex items-center justify-center space-x-2">
+                  <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.19 2.5 1.732 2.5z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 

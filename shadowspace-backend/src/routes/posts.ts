@@ -9,6 +9,9 @@ import { authMiddleware, AuthRequest } from '../utils/auth';
 import { containsBannedContent, getBannedWords } from '../utils/keywordFilter';
 import { generateFakeRegion } from '../utils/privacyShield';
 
+import mongoose from 'mongoose';
+
+
 const router: Router = express.Router();
 
 // Validation schema
@@ -289,7 +292,7 @@ router.put('/:id/vote', authMiddleware, async (req: AuthRequest, res: Response) 
 });
 
 // POST /api/posts/:id/impression - Track post impression (Changed from PUT to POST)
-router.post('/:id/impression', async (req: Request, res: Response) => {
+router.post('/impression/:id', async (req: Request, res: Response) => {
   try {
     const postId = req.params.id;
     

@@ -15,9 +15,9 @@ interface AuthState {
   token: string | null;
 
   /* actions */
-  login:  (username: string, password: string) => Promise<void>;
-  register:(username: string, password: string) => Promise<void>;
-  logout:  () => void;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string) => Promise<void>;
+  logout: () => void;
   checkAuth: () => Promise<void>;
 }
 
@@ -31,18 +31,48 @@ const setToken = (t: string | null) =>
   typeof window !== 'undefined' && (t ? localStorage.setItem('shadowspace_token', t)
                                       : localStorage.removeItem('shadowspace_token'));
 
-/** Shared fetch wrapper */
+/** Enhanced fetch wrapper with proper error handling */
 const jsonRequest = async <T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> => {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  const data = (await res.json()) as T;
-  if (!res.ok) throw new Error((data as any).error || 'Request failed');
-  return data;
+  try {
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+
+    const data = (await res.json()) as any;
+
+    if (!res.ok) {
+      // Handle specific HTTP status codes
+      if (res.status === 401) {
+        throw new Error('Invalid username or password');
+      } else if (res.status === 404) {
+        throw new Error('User not found');
+      } else if (res.status === 409) {
+        throw new Error('Username already exists. Please choose a different one');
+      } else if (res.status === 400) {
+        throw new Error(data.message || data.error || 'Invalid input data');
+      } else if (res.status >= 500) {
+        throw new Error('Server error. Please try again later');
+      } else {
+        throw new Error(data.message || data.error || `Request failed with status ${res.status}`);
+      }
+    }
+
+    return data as T;
+  } catch (error: any) {
+    // Handle network errors
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again');
+    } else if (error.message === 'Failed to fetch') {
+      throw new Error('Network error. Please check your connection');
+    } else {
+      // Re-throw the error with original message
+      throw error;
+    }
+  }
 };
 
 /* ---------- Zustand store ---------- */
@@ -54,26 +84,36 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   /* actions */
   login: async (username, password) => {
-    const data = await jsonRequest<{ user: User; token: string }>(
-      '/auth/login',
-      { method: 'POST', body: JSON.stringify({ username, password }) },
-    );
+    try {
+      const data = await jsonRequest<{ user: User; token: string }>(
+        '/auth/login',
+        { method: 'POST', body: JSON.stringify({ username, password }) },
+      );
 
-    setToken(data.token);
-    set({ isAuthenticated: true, user: data.user, token: data.token });
+      setToken(data.token);
+      set({ isAuthenticated: true, user: data.user, token: data.token });
+    } catch (error: any) {
+      console.error('Login error:', error.message);
+      throw error; // Re-throw for the UI to handle
+    }
   },
 
   register: async (username, password) => {
-    /* anonymousName is mandatory on the backend */
-    const anonymousName = 'anon_' + Date.now().toString(36).slice(-4);
+    try {
+      /* Generate a random anonymous name */
+      const anonymousName = 'anon_' + Date.now().toString(36).slice(-4);
 
-    const data = await jsonRequest<{ user: User; token: string }>(
-      '/auth/register',
-      { method: 'POST', body: JSON.stringify({ username, password, anonymousName }) },
-    );
+      const data = await jsonRequest<{ user: User; token: string }>(
+        '/auth/register',
+        { method: 'POST', body: JSON.stringify({ username, password, anonymousName }) },
+      );
 
-    setToken(data.token);
-    set({ isAuthenticated: true, user: data.user, token: data.token });
+      setToken(data.token);
+      set({ isAuthenticated: true, user: data.user, token: data.token });
+    } catch (error: any) {
+      console.error('Register error:', error.message);
+      throw error; // Re-throw for the UI to handle
+    }
   },
 
   logout: () => {
@@ -83,11 +123,14 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     const token = getToken();
-    if (!token) return set({ isAuthenticated: false, user: null, token: null });
+    if (!token) {
+      set({ isAuthenticated: false, user: null, token: null });
+      return;
+    }
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10_000);
+      const timeout = setTimeout(() => controller.abort(), 10000); // Fixed: removed underscore
 
       const data = await jsonRequest<{ user: User }>('/auth/verify', {
         method: 'GET',
@@ -97,7 +140,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       clearTimeout(timeout);
       set({ isAuthenticated: true, user: data.user, token });
-    } catch {
+    } catch (error) {
+      console.warn('Auth check failed:', error);
       setToken(null);
       set({ isAuthenticated: false, user: null, token: null });
     }
